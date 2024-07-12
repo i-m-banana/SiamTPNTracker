@@ -1,0 +1,14 @@
+[train: 1, 50 / 1875] FPS: 13.1 (196.1)  ,  Loss/total: 5.21532  ,  Loss/giou: 1.03311  ,  Loss/l1: 0.46811  ,  IoU: 0.01445  ,  Loss/cls: 0.44257
+[train: 1, 100 / 1875] FPS: 19.8 (32.7)  ,  Loss/total: 4.59604  ,  Loss/giou: 0.99636  ,  Loss/l1: 0.42985  ,  IoU: 0.05273  ,  Loss/cls: 0.34872
+[train: 1, 150 / 1875] FPS: 23.3 (94.2)  ,  Loss/total: 4.08175  ,  Loss/giou: 0.91084  ,  Loss/l1: 0.37469  ,  IoU: 0.14456  ,  Loss/cls: 0.30214
+[train: 1, 200 / 1875] FPS: 25.9 (21.8)  ,  Loss/total: 3.73276  ,  Loss/giou: 0.84922  ,  Loss/l1: 0.33758  ,  IoU: 0.20713  ,  Loss/cls: 0.27183
+[train: 1, 250 / 1875] FPS: 27.6 (85.0)  ,  Loss/total: 3.49189  ,  Loss/giou: 0.80869  ,  Loss/l1: 0.31309  ,  IoU: 0.24776  ,  Loss/cls: 0.24967
+[train: 1, 300 / 1875] FPS: 30.3 (80.1)  ,  Loss/total: 3.31022  ,  Loss/giou: 0.77789  ,  Loss/l1: 0.29581  ,  IoU: 0.27816  ,  Loss/cls: 0.23257
+[train: 1, 350 / 1875] FPS: 32.8 (188.2)  ,  Loss/total: 3.16290  ,  Loss/giou: 0.75372  ,  Loss/l1: 0.28199  ,  IoU: 0.30161  ,  Loss/cls: 0.21830
+[train: 1, 400 / 1875] FPS: 34.9 (24.7)  ,  Loss/total: 3.04360  ,  Loss/giou: 0.73445  ,  Loss/l1: 0.27172  ,  IoU: 0.31944  ,  Loss/cls: 0.20626
+[train: 1, 450 / 1875] FPS: 37.0 (183.4)  ,  Loss/total: 2.94304  ,  Loss/giou: 0.71856  ,  Loss/l1: 0.26330  ,  IoU: 0.33415  ,  Loss/cls: 0.19586
+[train: 1, 500 / 1875] FPS: 37.8 (201.8)  ,  Loss/total: 2.85811  ,  Loss/giou: 0.70507  ,  Loss/l1: 0.25624  ,  IoU: 0.34682  ,  Loss/cls: 0.18710
+[train: 1, 550 / 1875] FPS: 39.3 (34.0)  ,  Loss/total: 2.78638  ,  Loss/giou: 0.69398  ,  Loss/l1: 0.25024  ,  IoU: 0.35728  ,  Loss/cls: 0.17959
+[train: 1, 600 / 1875] FPS: 40.3 (17.7)  ,  Loss/total: 2.71722  ,  Loss/giou: 0.68287  ,  Loss/l1: 0.24402  ,  IoU: 0.36806  ,  Loss/cls: 0.17269
+[train: 1, 650 / 1875] FPS: 41.4 (181.9)  ,  Loss/total: 2.65879  ,  Loss/giou: 0.67363  ,  Loss/l1: 0.23885  ,  IoU: 0.37708  ,  Loss/cls: 0.16677
+[train: 1, 700 / 1875] FPS: 42.6 (174.1)  ,  Loss/total: 2.60314  ,  Loss/giou: 0.66436  ,  Loss/l1: 0.23376  ,  IoU: 0.38600  ,  Loss/cls: 0.16138
