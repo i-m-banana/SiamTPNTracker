@@ -7,7 +7,7 @@ sys.path.append(os.pardir)
 
 from lib.test.evaluation import get_dataset
 from lib.test.evaluation.running import run_dataset
-from lib.test.evaluation.tracker import Tracker
+from lib.test.evaluation.tracker_score import Tracker
 
 
 
@@ -34,7 +34,7 @@ def main():
     parser = argparse.ArgumentParser(description='Run tracker on sequence or dataset.')
     parser.add_argument('--tracker_name', default='siamtpn', type=str, help='Name of tracking method.')
     parser.add_argument('--tracker_param', default='shufflenet_l345_192', type=str, help='Name of config file.')
-    parser.add_argument('--video_name', default=r'E:\pycharm_work\siamg\test\test_22.mp4', type=str, help='the path of video')
+    parser.add_argument('--video_name', default=r'E:\pycharm_work\siamg\test\test_50.mp4', type=str, help='the path of video')
     parser.add_argument('--dataset_name', type=str, default='got10k_val', help='Name of dataset (otb, nfs, uav, tpl, vot, tn, gott, gotv, lasot).')
     parser.add_argument('--sequence', type=str, default=None, help='Sequence number or name.')
     parser.add_argument('--debug', type=int, default=0, help='Debug level.')
