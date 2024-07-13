@@ -6,10 +6,10 @@ import numpy as np
 import torch.nn.functional as F
 import cv2
 import os
-from lib.models.siamtpn.track  import build_network
+from lib.models.siamtpn.track import build_network
 from lib.test.tracker.utils import Preprocessor
 from lib.utils.box_ops import clip_box
-
+from collections import deque
 
 class SiamTPN(BaseTracker):
     def __init__(self, params):
@@ -26,14 +26,18 @@ class SiamTPN(BaseTracker):
         # for debug
         self.debug = self.params.debug
         self.frame_id = 0
-        self.grids = self._generate_anchors(self.cfg.MODEL.ANCHOR.NUM, self.cfg.MODEL.ANCHOR.FACTOR, self.cfg.MODEL.ANCHOR.BIAS)
+        self.grids = self._generate_anchors(self.cfg.MODEL.ANCHOR.NUM, self.cfg.MODEL.ANCHOR.FACTOR,
+                                            self.cfg.MODEL.ANCHOR.BIAS)
         self.window = self._hanning_window(self.cfg.MODEL.ANCHOR.NUM)
         self.hanning_factor = self.cfg.TEST.HANNING_FACTOR
         self.feat_sz_tar = self.cfg.MODEL.ANCHOR.NUM
 
+        self.state_queue = deque(maxlen=100)
+        self.best_state = None
+
     def initialize(self, image, info: dict):
         gt_box = torch.tensor(info['init_bbox'])
-        z_patch_arr, _, z_amask_arr = sample_target(image,gt_box , self.params.template_factor,
+        z_patch_arr, _, z_amask_arr = sample_target(image, gt_box, self.params.template_factor,
                                                     output_sz=self.params.template_size)
         template = self.preprocessor.process(z_patch_arr, z_amask_arr)
         with torch.no_grad():
@@ -44,15 +48,16 @@ class SiamTPN(BaseTracker):
         self.state = info['init_bbox']
         self.frame_id = 0
 
-
-    def track(self, image, info: dict = None):
+    def track(self, image, cache=None):
         H, W, _ = image.shape
         self.frame_id += 1
-        
+
         x_patch_arr, resize_factor, x_amask_arr = sample_target(image, self.state, self.params.search_factor,
                                                                 output_sz=self.params.search_size)  # (x1, y1, w, h)
-
-        search = self.preprocessor.process(x_patch_arr, x_amask_arr)
+        if cache is not None:
+            search = cache
+        else:
+            search = self.preprocessor.process(x_patch_arr, x_amask_arr)
 
         with torch.no_grad():
             tar_feat = self.network.backbone(search)
@@ -60,20 +65,21 @@ class SiamTPN(BaseTracker):
             raw_scores, boxes = self.network.head(tar_feat, self.tem_feat)
             raw_scores = raw_scores.cpu()  # B,L,2
             boxes = boxes.cpu()
-            pred_boxes = boxes.reshape(-1, 4) 
-            lt = self.grids[:,:2] - pred_boxes[:,:2]
-            rb = self.grids[:,:2] + pred_boxes[:,2:]
+            pred_boxes = boxes.reshape(-1, 4)
+            lt = self.grids[:, :2] - pred_boxes[:, :2]
+            rb = self.grids[:, :2] + pred_boxes[:, 2:]
             pred_boxes = torch.cat([lt, rb], -1).view(-1, 4)
-            raw_scores = F.softmax(raw_scores, -1)[:,1].view(self.feat_sz_tar, self.feat_sz_tar)
-            raw_scores = raw_scores * (1-self.hanning_factor) + self.hanning_factor * self.window
+            raw_scores = F.softmax(raw_scores, -1)[:, 1].view(self.feat_sz_tar, self.feat_sz_tar)
+            raw_scores = raw_scores * (1 - self.hanning_factor) + self.hanning_factor * self.window
             max_v, ind = raw_scores.view(-1).topk(1)
-            pred_box = pred_boxes[ind, :]  
+            pred_box = pred_boxes[ind, :]
+            score = max_v.item()
         pred_box = (pred_box.mean(dim=0) * self.params.search_size / resize_factor).tolist()  # (cx, cy, w, h) [0,1]
 
         if self.debug:
             x1, y1, w, h = self.state
             image_BGR = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-            cv2.rectangle(image_BGR, (int(x1),int(y1)), (int(x1+w),int(y1+h)), color=(0,0,255), thickness=5)
+            cv2.rectangle(image_BGR, (int(x1), int(y1)), (int(x1 + w), int(y1 + h)), color=(0, 0, 255), thickness=5)
             cv2.imshow("demo", image_BGR)
             key = cv2.waitKey(1)
             if key == ord('p'):
@@ -82,23 +88,22 @@ class SiamTPN(BaseTracker):
         # get the final box result
         H, W, _ = image.shape
         self.state = clip_box(self.map_box_back(pred_box, resize_factor), H, W, margin=10)
-        
-        return {"target_bbox": self.state}
+        return {"target_bbox": self.state, "score": score}
 
     def map_box_back(self, pred_box: list, resize_factor: float):
-        #print(self.state)
+        # print(self.state)
         cx_prev, cy_prev = self.state[0] + 0.5 * self.state[2], self.state[1] + 0.5 * self.state[3]
-        x1,y1,x2,y2 = pred_box
-        cx, cy, w, h = (x1+x2)/2, (y1+y2)/2, x2-x1, y2-y1
+        x1, y1, x2, y2 = pred_box
+        cx, cy, w, h = (x1 + x2) / 2, (y1 + y2) / 2, x2 - x1, y2 - y1
         half_side = 0.5 * self.params.search_size / resize_factor
         cx_real = cx + (cx_prev - half_side)
         cy_real = cy + (cy_prev - half_side)
-        #print(cx_real, cy_real, cx_prev, cy_prev, cx, cy)
+        # print(cx_real, cy_real, cx_prev, cy_prev, cx, cy)
         return [cx_real - 0.5 * w, cy_real - 0.5 * h, w, h]
 
     def map_box_back_batch(self, pred_box: torch.Tensor, resize_factor: float):
         cx_prev, cy_prev = self.state[0] + 0.5 * self.state[2], self.state[1] + 0.5 * self.state[3]
-        cx, cy, w, h = pred_box.unbind(-1) # (N,4) --> (N,)
+        cx, cy, w, h = pred_box.unbind(-1)  # (N,4) --> (N,)
         half_side = 0.5 * self.params.search_size / resize_factor
         cx_real = cx + (cx_prev - half_side)
         cy_real = cy + (cy_prev - half_side)
@@ -116,14 +121,36 @@ class SiamTPN(BaseTracker):
         """
         x = np.arange(num)
         y = np.arange(num)
-        xx, yy = np.meshgrid(x, y) 
-        xx = (factor * xx + bias) / num 
+        xx, yy = np.meshgrid(x, y)
+        xx = (factor * xx + bias) / num
         yy = (factor * yy + bias) / num
         xx = torch.from_numpy(xx).view(-1).float()
         yy = torch.from_numpy(yy).view(-1).float()
-        grids = torch.stack([xx, yy],-1) # N 2
+        grids = torch.stack([xx, yy], -1)  # N 2
         return grids
 
+    def save_cache(self, img, bbox):
+        x_patch_arr, resize_factor, x_amask_arr = sample_target(img, bbox, self.params.search_factor,
+                                                                output_sz=self.params.search_size)  # (x1, y1, w, h)
+        cache = self.preprocessor.process(x_patch_arr, x_amask_arr)
+        return cache
+
+    def save_state(self):
+        self.state_queue.append(self.state)
+        # self.best_state = self.state
+
+    def rollback_state(self, n_frames=1):
+        """ Rollback the state to n_frames before """
+        if n_frames < len(self.state_queue):
+            # Copy the state n_frames before
+            # self.state = self.state_queue[-(n_frames + 1)].copy()
+            self.state = self.state_queue.pop()
+            print(self.state)
+        else:
+            print("Not enough frames to rollback")
+
+    def last_state(self):
+        self.state = self.state_queue[-1].copy()
 
 def get_tracker_class():
     return SiamTPN
